@@ -1,4 +1,4 @@
-# Q2 - Intraday NIFTY options: three strategies and a combined portfolio
+# Intraday NIFTY options: three strategies and a combined portfolio
 
 Backtest of a Mean Reversion, a Directional and a Semi-Directional intraday strategy on NIFTY weekly
 options, using 1-minute data from Dhan (2025-09-30 → 2026-09-25, 243 trading days), and their
