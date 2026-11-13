@@ -1,0 +1,121 @@
+TEST REGISTER - every backtest run in this project, what it used, and what it found
+=====================================================================================
+Last updated: 2026-10-04.  Newest first in section 3.  All numbers are the COMBINED portfolio
+(3 x Rs 10 lakh sleeves) unless a strategy is named.  Sharpe is shown with its 95% CI.
+
+Tidy-up (2026-10-22): all result folders (results/ incl. ANALYSIS.md, Q2_Report.pdf,
+development/, archive/; results_latest/, 23-25_dhan/, 23-26/, test_2025_26/), the
+unused scripts (build_strategy_data.py, build_universe_data.py,
+combine_dhan_options.py, dhan_g.py, explore.py, inspect_parquet.py), unused data
+(data/dhan_nifty_options/, data/tradeable_universe.parquet, data/universe/,
+data/nifty_opt_bhavcopy.csv, both nifty_options_1min.parquet lookup files) and the
+logs / interview_questions.txt were moved to _unused/, keeping their relative paths:
+a path X mentioned below that no longer exists is now _unused/X. Nothing was deleted.
+The backtest still reproduces _unused/results/stats.csv and
+_unused/results/development/stats.csv exactly. Running run_backtest.py recreates
+results/; make_pdf.py needs results/ANALYSIS.md, so copy it back from
+_unused/results/ first.
+
+-------------------------------------------------------------------------------------
+1. THE LATEST RESULT (what is submitted)
+-------------------------------------------------------------------------------------
+Rules:  R4 "Redesign" (current code: MeanReversion / Directional / SemiDirectional in
+        backtest/strategies.py; same rules as research/specs/v2.json)
+
+  T9  results/development/   DEVELOPMENT 2023-01-02 -> 2025-09-29, in-sample (rules chosen here)
+      Combined CAGR 38.6%, MDD -7.0%, Calmar 5.53, Sharpe 1.93 (1.07 to 2.80)   -> target met
+
+  T10 results/               TEST YEAR 2025-09-30 -> 2026-09-25, out-of-sample (rules frozen first)
+      Combined CAGR -0.2%, MDD -11.2%, Calmar -0.02, Sharpe 0.04 (-1.96 to 2.04) -> target NOT met
+        Mean Reversion   CAGR  -1.6%  Calmar -0.08
+        Directional      CAGR  -9.5%  Calmar -0.76
+        Semi-Directional CAGR  10.6%  Calmar  1.11   (the only one that held up)
+
+  The Analysis/ email package contains exactly these two runs (Analysis/3_Code_and_Data/results/
+  and results/development/); its stats are verified identical to the two folders above.
+
+-------------------------------------------------------------------------------------
+2. RULE SETS (which "rules" each test used)
+-------------------------------------------------------------------------------------
+R1  First-half design (2026-09-29). Designed on Sep 2025-Mar 2026, tested on Apr-Sep 2026.
+    Discarded after it lost on the held-out half. Not kept in code; no results folder.
+
+R2  Fit on 2025-26, Mean Reversion v1. Rules chosen on the full 2025-26 year.
+    Classes: MeanReversionV1 + DirectionalFit2026 + SemiDirectionalFit2026.
+    MR = one 10:30 day-before-expiry entry at 3x risk. Superseded by R3.
+
+R3  Fit on 2025-26, Mean Reversion v2 (the previously submitted version). Same as R2 except MR's
+    day-before-expiry entry is split into 3 tranches (10:20/10:35/10:50).
+    Classes: MeanReversionFit2026 + DirectionalFit2026 + SemiDirectionalFit2026.
+    Directional uses the put/call OI ratio; without OI it falls back to the price move since open.
+
+R4  Redesign (CURRENT). Rules chosen on 2023-01-02 -> 2025-09-29 only, with the research/ search
+    (profitable every year + plateau filters, neighbour-averaged risk weights).
+    Classes: MeanReversion + Directional + SemiDirectional.
+
+-------------------------------------------------------------------------------------
+3. ALL TESTS
+-------------------------------------------------------------------------------------
+Data files:
+  DHAN-LATEST data/latest/ (run_latest.py), Dhan download after the submitted test year, has OI
+  DHAN-TEST  data/final/nifty_opt_1min.parquet          Dhan, 2025-09-30 -> 2026-09-25, 243 days, has OI
+  DHAN-DEV   data/dhan_2023_2025/nifty_opt_1min.parquet Dhan, 2023-01-02 -> 2025-09-29, 675 days, has OI
+  UNIVERSE   data/universe/nifty_opt_1min_universe.parquet  user-supplied, 2023-01-02 -> 2026-09-28,
+             908 days, NO OI (so Directional runs its price fallback, not the real OI signal)
+
+ID   Date        Folder                                        Rules  Data       Period / sample type                    Combined result
+---  ----------  --------------------------------------------  -----  ---------  --------------------------------------  -----------------------------------------
+T1   2026-09-29  (none - overwritten)                          R1     DHAN-TEST  Apr-Sep 2026, out-of-sample            Lost on all 3 strategies, Sharpe -4.6
+T2   2026-09-29  results/archive/2026-09-29_mean_reversion_v1/ R2     DHAN-TEST  2025-26, IN-SAMPLE (fitted year)       CAGR 50.3%, MDD -5.2%, Calmar 9.59, Sharpe 2.79
+T3   2026-09-30  results/archive/2026-10-03_rules_fit_2025_26/ R3     DHAN-TEST  2025-26, IN-SAMPLE (fitted year)       CAGR 47.9%, MDD -5.1%, Calmar 9.42, Sharpe 2.80
+                 (this was the previously submitted result)
+T4   2026-10-02  23-26/                                        R3     UNIVERSE   2023-01 -> 2026-09 (mixed):             Full period Calmar 0.27, Sharpe 0.48
+                                                                                 2023-01 -> 2025-09 = out-of-sample       OOS part: CAGR -2.1%, MDD -23.1%, Calmar -0.09
+                                                                                 2025-09 -> 2026-09 = fitted year         fitted part: Calmar 5.92 (reproduces T3)
+T5   2026-10-02  23-25_dhan/                                   R3     DHAN-DEV   2023-01 -> 2025-09, OUT-OF-SAMPLE       CAGR 1.5%, MDD -23.0%, Calmar 0.07, Sharpe 0.17
+                 (first test of the REAL OI Directional out of sample: CAGR 0.8%, profit = 5 trades)
+T6   2026-10-02  (scratchpad only, not kept)                   R4     DHAN-DEV   development, in-sample                  Calmar 5.53 (same as T9; the pre-freeze check)
+T7   2026-10-03  test_2025_26/                                 R4     DHAN-TEST  2025-26, OUT-OF-SAMPLE                  CAGR -0.2%, Calmar -0.02 (same as T10)
+                 (the first and only "real" run of the frozen redesign on the test year; T10 is an
+                 identical rerun that became the official results/)
+T8   2026-10-03  data/dhan_2023_2025/search/                   -      DHAN-DEV   development only                        Rule search: 4,60,350 simulated positions,
+                                                                                                                         scores.csv (not a backtest of a fixed rule set)
+T9   2026-10-03  results/development/                          R4     DHAN-DEV   development, IN-SAMPLE                  CAGR 38.6%, MDD -7.0%, Calmar 5.53, Sharpe 1.93
+T10  2026-10-03  results/                                      R4     DHAN-TEST  2025-26, OUT-OF-SAMPLE                  CAGR -0.2%, MDD -11.2%, Calmar -0.02, Sharpe 0.04
+
+T11  2026-10-19  results_latest/new_days/                      R4     DHAN-LATEST NEW DAYS ONLY, OUT-OF-SAMPLE: 2026-09-28 -> 2026-10-16, 14d
+                                                                                            Return -1.4%, MDD -3.0%, Calmar -8.32, Sharpe -2.08
+T12  2026-10-19  results_latest/extended_year/                 R4     DHAN-LATEST test year extended, OUT-OF-SAMPLE: 2025-09-30 -> 2026-10-16, 257d
+                                                                                            Return -1.7%, MDD -11.2%, Calmar -0.14, Sharpe -0.09
+
+Per-strategy results for the main tests:
+                         Mean Reversion          Directional             Semi-Directional
+  T3  (R3, 2025-26 IS)   CAGR 70.9% Calmar 7.04  CAGR 41.4% Calmar 4.84  CAGR 31.6% Calmar 7.17
+  T5  (R3, 2023-25 OOS)  CAGR  3.7% Calmar 0.11  CAGR  0.8% Calmar 0.02  CAGR -0.0% Calmar -0.00
+  T9  (R4, 2023-25 IS)   CAGR 70.0% Calmar 4.50  CAGR 14.7% Calmar 1.58  CAGR 18.8% Calmar 1.80
+  T10 (R4, 2025-26 OOS)  CAGR -1.6% Calmar -0.08 CAGR -9.5% Calmar -0.76 CAGR 10.6% Calmar 1.11
+
+-------------------------------------------------------------------------------------
+4. HOW TO READ THIS
+-------------------------------------------------------------------------------------
+- Each rule set looks good only on the data it was chosen on:
+    R3: Calmar 9.42 on 2025-26 (fitted)    -> 0.07 on 2023-25 (not fitted)
+    R4: Calmar 5.53 on 2023-25 (fitted)    -> -0.02 on 2025-26 (not fitted)
+  That pattern means the large in-sample numbers are mostly fitting. Only Semi-Directional's
+  expiry-day credit spread made money in both directions of the test.
+- The 2025-26 test year (T7/T10) is not perfectly clean: R3 had been fitted on it earlier.
+- Stale labels: the report.md files in 23-26/, 23-25_dhan/ and test_2025_26/ were generated before
+  the labelling fix and all say "IN-SAMPLE". Use this register (and each folder's README.md) instead:
+  23-25_dhan/ and test_2025_26/ are out-of-sample tests, 23-26/ is mixed.
+- Before/after files (*_before_after.*) inside a folder compare the folder's rules with the previous
+  version on the SAME data. In results/ they compare R3 (before) with R4 (after).
+- Duplicates: test_2025_26/ = results/;  Analysis/3_Code_and_Data/results* = results/ + results/development/.
+
+-------------------------------------------------------------------------------------
+5. CHECKS (not performance tests)
+-------------------------------------------------------------------------------------
+- tests/test_engine.py: known-answer tests for fills, slippage, charges. Pass (last run 2026-10-03).
+- tests/check_lookahead.py: SYNTHETIC data, zero costs; mean P&L per trade must be ~0.
+  R4: 0 of 12 strategy-seed tests with |t| >= 2 (2026-10-03). No look-ahead.
+- Refactor check (2026-10-02): splitting out strategies.simulate()/view() reproduced T3's stats.csv exactly.
+- Package check (2026-10-03): Analysis/ code reproduces T9 and T10 stats exactly.
